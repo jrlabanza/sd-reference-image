@@ -9,9 +9,9 @@ After Forge restart, you'll find a new accordion called **"📸 Reference Image 
 - **Stack up to three references.** *Stack more references (2 & 3)* adds two more reference images, each with its own mode (Off / Vibe / Precise) and strength (0-1.5) - for example a Vibe for the look plus a Precise for the face. Each extra reference costs VRAM; on 8 GB, one or two is the comfortable limit.
 - **Vibe library.** Name the current reference and press **💾 Save vibe** to keep the picture with its mode and strength; pick one from the *Vibe library* list and press **📥 Load** to bring it back (🔄 refreshes the list).
 
-## Known issue (November 2026)
+## Strength on SDXL fine-tunes (November 2026)
 
-*Vibe* uses `ip-adapter-plus_sdxl_vit-h`, which currently gives blown-out, saturated SDXL images in Forge Neo with any attention backend (an issue in Forge, not in this extension). *Precise* uses the plus-face model. For a usable style reference meanwhile, the ControlNet panel with **CLIP-ViT-H (IPAdapter)** and the plain `ip-adapter_sdxl_vit-h` model works. On RTX 50 cards the extension now switches Comfy-Kitchen INT8 attention to PyTorch during the render, as it does SageAttention.
+IPAdapter Plus acts about **three times as strongly on SDXL fine-tunes** (Illustrious, Pony, NoobAI) as on base SDXL. At the old default of 0.7, *Vibe* blew out to a saturated, over-bright picture, which looked like a broken model. Measured on waiIllustrious: *Vibe* is clean and follows the reference at **0.25** (0.35 and up blow out), *Precise* carries the face at **0.5** (0.7 turns greyish). Picking a mode now sets that strength, and the sliders start at 0.25; move them as you like. A vibe saved earlier keeps its saved strength, so lower it if it comes out burnt. On RTX 50 cards the Comfy-Kitchen INT8 attention is swapped to PyTorch during the render, as SageAttention is.
 
 ## Modes
 
@@ -24,7 +24,7 @@ After Forge restart, you'll find a new accordion called **"📸 Reference Image 
 1. In txt2img, expand the **📸 Reference Image** accordion
 2. Drop your reference image
 3. Pick a mode
-4. Set strength (defaults: 0.7 — try 0.5-0.7 for Vibe, 0.6-1.0 for Precise)
+4. Set strength - picking a mode sets its usual value (Vibe 0.25, Precise 0.5 on SDXL fine-tunes; base SDXL takes more)
 5. Click the normal Generate button
 
 The script applies the IPAdapter directly to the UNet using Forge's existing IPAdapter machinery (no ControlNet UI fiddling, no preprocessor footguns). Infotext is stamped with `RefImg Mode / RefImg Strength / RefImg Model` so generations are reproducible.

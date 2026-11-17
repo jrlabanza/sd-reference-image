@@ -23,6 +23,10 @@ TAG = "[reference-image]"
 MODE_OFF = "Off"
 MODE_VIBE = "Vibe (style + composition)"
 MODE_PRECISE = "Precise (face / character)"
+# Strength a mode starts at when it is picked. IPAdapter Plus on SDXL fine-tunes (Illustrious, Pony, NoobAI) acts about
+# three times as strongly as on base SDXL: measured on waiIllustrious, Vibe is clean and follows the reference at 0.25
+# (0.35 and up blow out to a saturated, over-bright image) and Precise (Plus Face) carries the face at 0.5 (0.7 greys).
+DEFAULT_STRENGTH = {MODE_VIBE: 0.25, MODE_PRECISE: 0.5}
 
 MODE_TO_FILENAME = {
     MODE_VIBE: "ip-adapter-plus_sdxl_vit-h.safetensors",
@@ -71,7 +75,7 @@ def _lib_load(name):
         img = np.asarray(PILImage.open(LIB_DIR / f"{name}.png").convert("RGB"))
         meta = json.loads((LIB_DIR / f"{name}.json").read_text(encoding="utf-8"))
         return (img, meta.get("mode", MODE_VIBE),
-                float(meta.get("strength", 0.7)), f"Loaded vibe '{name}'.")
+                float(meta.get("strength", DEFAULT_STRENGTH.get(meta.get("mode"), 0.25))), f"Loaded vibe '{name}'.")
     except Exception as exc:
         logger.warning(f"{TAG} vibe load failed: {exc}")
         return gr.update(), gr.update(), gr.update(), f"Load failed: {exc}"
@@ -277,7 +281,9 @@ class ReferenceImageScript(scripts.Script if scripts else object):
             gr.Markdown(
                 "Drop a reference, pick mode, set strength. Stack up to three "
                 "references (like NAI vibe stacking) and save favorites to the "
-                "vibe library. Sage attention is hot-swapped automatically."
+                "vibe library. Picking a mode sets its usual strength (Vibe 0.25, Precise "
+                "0.5 on SDXL fine-tunes). Fast attention (Sage / Comfy-Kitchen) is swapped "
+                "to PyTorch for the render automatically."
             )
             with gr.Row():
                 ref_image = gr.Image(label="Reference 1", type="numpy", height=240)
@@ -288,7 +294,7 @@ class ReferenceImageScript(scripts.Script if scripts else object):
                         label="Mode",
                     )
                     strength = gr.Slider(
-                        minimum=0.0, maximum=1.5, step=0.05, value=0.7,
+                        minimum=0.0, maximum=1.5, step=0.05, value=0.25,
                         label="Reference strength",
                     )
             with gr.Row():
@@ -307,7 +313,7 @@ class ReferenceImageScript(scripts.Script if scripts else object):
                     with gr.Column():
                         mode2 = gr.Radio(choices=[MODE_OFF, MODE_VIBE, MODE_PRECISE],
                                          value=MODE_OFF, label="Mode 2")
-                        strength2 = gr.Slider(0.0, 1.5, step=0.05, value=0.5,
+                        strength2 = gr.Slider(0.0, 1.5, step=0.05, value=0.25,
                                               label="Strength 2")
                 with gr.Row():
                     ref_image3 = gr.Image(label="Reference 3", type="numpy",
@@ -315,11 +321,17 @@ class ReferenceImageScript(scripts.Script if scripts else object):
                     with gr.Column():
                         mode3 = gr.Radio(choices=[MODE_OFF, MODE_VIBE, MODE_PRECISE],
                                          value=MODE_OFF, label="Mode 3")
-                        strength3 = gr.Slider(0.0, 1.5, step=0.05, value=0.5,
+                        strength3 = gr.Slider(0.0, 1.5, step=0.05, value=0.25,
                                               label="Strength 3")
                 gr.Markdown("*Each stacked reference adds VRAM cost — on 8 GB, "
                             "two is comfortable, three is tight. Lower strengths "
                             "when stacking.*")
+
+            # picking a mode (a user click - .input, so loading a saved vibe keeps its own strength) sets its usual strength
+            def _mode_strength(m):
+                return gr.update(value=DEFAULT_STRENGTH[m]) if m in DEFAULT_STRENGTH else gr.update()
+            for _m, _s in ((mode, strength), (mode2, strength2), (mode3, strength3)):
+                _m.input(_mode_strength, [_m], [_s], show_progress=False)
 
             lib_save_btn.click(_lib_save, [ref_image, mode, strength, lib_name],
                                [lib_dd, lib_status])
