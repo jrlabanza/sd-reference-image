@@ -181,12 +181,14 @@ def _swap_attention_to_pytorch(p):
     """
     try:
         from backend import attention as a
-        sage = getattr(a, "attention_sage", None)
         pyt = getattr(a, "attention_pytorch", None)
-        if sage is None or pyt is None:
+        if pyt is None:
             return
-        if a.attention_function is not sage:
-            # Already on a safe backend (PyTorch/xformers/flash). Nothing to do.
+        # any fast attention is swapped out: SageAttention 2 gives NaN (black) with IPAdapter Plus, and the
+        # Comfy-Kitchen INT8 attention Forge uses on RTX 50 gives a blown-out, saturated image that is not NaN
+        sage = a.attention_function
+        if sage is pyt:
+            # Already on PyTorch attention. Nothing to do.
             return
 
         # Optional VAE swap target. Some Sage builds also patch the VAE path;
