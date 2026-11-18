@@ -81,6 +81,27 @@ def _lib_load(name):
         return gr.update(), gr.update(), gr.update(), f"Load failed: {exc}"
 
 
+def _as_array(img):
+    """The reference as an HxWx3 uint8 array. The UI sends one; an API call (alwayson_scripts) sends a base64 string
+    or a data URL, and other extensions may pass a PIL image."""
+    if img is None:
+        return None
+    import numpy as np
+    if isinstance(img, str):
+        import base64
+        import io
+        from PIL import Image
+        data = img.split(",", 1)[1] if img.startswith("data:") else img
+        try:
+            img = Image.open(io.BytesIO(base64.b64decode(data)))
+        except Exception as exc:
+            logger.warning(f"{TAG} reference image could not be read: {exc}")
+            return None
+    if hasattr(img, "convert"):
+        img = np.asarray(img.convert("RGB"))
+    return img
+
+
 def _find_ipadapter_model(filename):
     try:
         from modules import paths
@@ -160,15 +181,26 @@ def _load_ipadapter_state(model_path):
 
 
 def _get_opIPAdapterApply():
+    """The IP-Adapter apply op, called with keywords, returning (model,).
+
+    Older Forge builds export an `opIPAdapterApply` instance that returns (model,). Forge Neo 2.32 removed it: the same
+    code is the class method `IPAdapterApply.apply_ipadapter`, which returns the model itself - wrapped here so both
+    builds look the same to the caller (without this every reference failed with an AttributeError)."""
     import importlib
     try:
-        return importlib.import_module("scripts.forge_ipadapter").opIPAdapterApply
+        mod = importlib.import_module("scripts.forge_ipadapter")
     except ImportError:
         ip = Path(__file__).resolve().parents[3] / "extensions-builtin" / "sd_forge_ipadapter" / "scripts"
         if str(ip) not in sys.path:
             sys.path.insert(0, str(ip))
-        import importlib
-        return importlib.import_module("forge_ipadapter").opIPAdapterApply
+        mod = importlib.import_module("forge_ipadapter")
+    op = getattr(mod, "opIPAdapterApply", None)
+    if op is not None:
+        return op
+    cls = getattr(mod, "IPAdapterApply", None)
+    if cls is None:
+        from lib_ipadapter.IPAdapterPlus import IPAdapterApply as cls
+    return lambda **kw: (cls.apply_ipadapter(**kw),)
 
 
 def _swap_attention_to_pytorch(p):
@@ -353,6 +385,7 @@ class ReferenceImageScript(scripts.Script if scripts else object):
             if len(triple) < 3:
                 break
             img, mode, strength = triple
+            img = _as_array(img)
             if mode != MODE_OFF and img is not None and (strength or 0) > 0.0:
                 slots.append((img, mode, float(strength)))
         if not slots:

@@ -6,6 +6,8 @@ After Forge restart, you'll find a new accordion called **"📸 Reference Image 
 
 ## What's new - November 2026
 
+- **Works on Forge Neo 2.32.** Neo 2.32 replaced the IP-Adapter op this extension calls (`opIPAdapterApply`, which returned `(model,)`, became the class method `IPAdapterApply.apply_ipadapter`, which returns the model): every reference failed with `AttributeError: ... has no attribute 'opIPAdapterApply'` in the console and the picture rendered without it. Both versions work now.
+- **Usable from the API.** In `alwayson_scripts`, `"Reference Image (NAI-style)": {"args": [image, mode, strength, image2, mode2, strength2, image3, mode3, strength3]}` takes each image as base64 or a data URL (the UI passes an array). The Character Sheet tab uses it for a passport's reference picture.
 - **Stack up to three references.** *Stack more references (2 & 3)* adds two more reference images, each with its own mode (Off / Vibe / Precise) and strength (0-1.5) - for example a Vibe for the look plus a Precise for the face. Each extra reference costs VRAM; on 8 GB, one or two is the comfortable limit.
 - **Vibe library.** Name the current reference and press **💾 Save vibe** to keep the picture with its mode and strength; pick one from the *Vibe library* list and press **📥 Load** to bring it back (🔄 refreshes the list).
 
